@@ -18,16 +18,56 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { templateAPI, uploadAPI } from "../../services/api";
 
-const defaultField = {
-  name: "",
-  x: 0,
-  y: 0,
-  fontSize: 16,
-  fontColor: "#000000",
-  textAlign: "left",
-  isBold: false,
-  isItalic: false,
-};
+const defaultField = [
+  {
+    name: "courseName",
+    title: "Cài đặt vị trí đặt tên khóa học",
+    nameDisplay: "Tên khóa học",
+    x: 0,
+    y: 0,
+    fontSize: 16,
+    fontColor: "#000000",
+    textAlign: "center",
+    fontFamily: "Arial",
+    isChoose: false,
+  },
+  {
+    name: "studentName",
+    title: "Cài đặt vị trí đặt tên học viên",
+    nameDisplay: "Tên học viên",
+    x: 0,
+    y: 0,
+    fontSize: 16,
+    fontColor: "#000000",
+    textAlign: "center",
+    fontFamily: "Arial",
+    isChoose: false,
+  },
+  {
+    name: "timeComplete",
+    title: "Cài đặt vị trí đặt ngày hoàn thành",
+    nameDisplay: "Ngày hoàn thành",
+    x: 0,
+    y: 0,
+    fontSize: 16,
+    fontColor: "#000000",
+    textAlign: "center",
+    fontFamily: "Arial",
+    isChoose: false,
+  },
+  {
+    name: "infoCompany",
+    title: "Cài đặt vị trí thông tin đơn vị",
+    nameDisplay: "Thông tin đơn vị",
+    x: 0,
+    y: 0,
+    fontSize: 16,
+    fontColor: "#000000",
+    textAlign: "center",
+    fontFamily: "Arial",
+    isChoose: false,
+  },
+];
 
 const widthCanvas = 900;
 
@@ -51,15 +91,13 @@ const TemplateForm = () => {
   const [selectedField, setSelectedField] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [heightCanvas, setHeightCanvas] = useState(0);
+  const [listFont, setListFont] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     background: "",
-    fontFamily: "Helvetica",
-    fields: [{ ...defaultField }],
-    isDefault: false,
-    isActive: true,
+    fields: [...defaultField],
   });
 
   const [errors, setErrors] = useState({});
@@ -75,6 +113,8 @@ const TemplateForm = () => {
           if (!templateData.fields || templateData.fields.length === 0) {
             templateData.fields = [{ ...defaultField }];
           }
+
+          console.log("templateData", templateData);
 
           setFormData(templateData);
 
@@ -113,55 +153,66 @@ const TemplateForm = () => {
     }
   }, [previewImage]);
 
+  useEffect(() => {
+    getListFontFamily();
+  }, []);
+
+  const getListFontFamily = async () => {
+    const response = await templateAPI.getListFonts();
+    // return response.data.data;
+    console.log("getListFontFamily", response.data.fonts);
+    setListFont([{ name: "Arial", value: "Arial" }, ...response.data.fonts]);
+  };
+
   const validate = () => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
       newErrors.name = "Tên template là bắt buộc";
     }
+    console.log("formData.background", formData.background);
+    console.log("selectedField", selectedFile);
 
-    // Validate từng field trong fields
-    const fieldErrors = formData.fields.map((field) => {
-      const fieldError = {};
-      if (!field.name.trim()) {
-        fieldError.name = "Tên trường là bắt buộc";
-      }
-      return fieldError;
-    });
+    if (!selectedFile && formData.background === "") {
+      newErrors.background = "Hình nền là bắt buộc";
+    }
 
-    if (fieldErrors.some((fe) => Object.keys(fe).length > 0)) {
-      newErrors.fields = fieldErrors;
+    const fieldsChoose = formData.fields.filter((field) => field.isChoose);
+    console.log("fieldsChoose", fieldsChoose);
+
+    if (fieldsChoose.length === 0) {
+      newErrors.fields = "Cần ít nhất một trường dữ liệu được chọn";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = async (e) => {
     const { name, value, type, checked } = e.target;
-
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleFieldChange = (index, e) => {
+  const loadFont = async (name, url) => {
+    try {
+      console.log("loadFont", name, `url(http://localhost:3001${url})`);
+
+      const font = new FontFace(name, `url(http://localhost:3001${url})`);
+      await font.load();
+      document.fonts.add(font);
+    } catch (error) {
+      console.error("Error loading font:", error);
+    }
+  };
+
+  const handleFieldChange = async (index, e) => {
     const { name, value, type, checked } = e.target;
 
-    // Xử lý đặc biệt cho fontSize, đảm bảo là số
-    if (name === "fontSize") {
-      const numValue = parseInt(value, 10);
-
-      setFormData((prev) => {
-        const updatedFields = [...prev.fields];
-        updatedFields[index] = {
-          ...updatedFields[index],
-          [name]: isNaN(numValue) ? 16 : numValue,
-        };
-        return { ...prev, fields: updatedFields };
-      });
-      return;
+    if (name === "fontFamily") {
+      await loadFont(value, `/fonts/${value}.ttf`); // Tải font chữ khi thay đổi value); // Tải font chữ khi thay đổi
     }
 
     setFormData((prev) => {
@@ -170,31 +221,9 @@ const TemplateForm = () => {
         ...updatedFields[index],
         [name]: type === "checkbox" ? checked : value,
       };
+      // console.log("updatedFields", updatedFields);
       return { ...prev, fields: updatedFields };
     });
-  };
-
-  const addField = () => {
-    setFormData((prev) => ({
-      ...prev,
-      fields: [...prev.fields, { ...defaultField }],
-    }));
-  };
-
-  const removeField = (index) => {
-    if (formData.fields.length > 1) {
-      setFormData((prev) => {
-        const updatedFields = [...prev.fields];
-        updatedFields.splice(index, 1);
-        return { ...prev, fields: updatedFields };
-      });
-
-      if (selectedField === index) {
-        setSelectedField(null);
-      } else if (selectedField > index) {
-        setSelectedField(selectedField - 1);
-      }
-    }
   };
 
   // Upload background lên server
@@ -323,24 +352,25 @@ const TemplateForm = () => {
 
     // Vẽ các trường dữ liệu
     formData.fields.forEach((field, index) => {
-      const isSelected = selectedField === index;
-      const text = field.name || `Trường #${index + 1}`;
+      const isSelected = field.isChoose;
+      if (isSelected) {
+        const text = field.nameDisplay || `Trường #${index + 1}`;
 
-      // Đảm bảo fontSize là số
-      const fontSize = Number(field.fontSize) || 16;
+        // Đảm bảo fontSize là số
+        const fontSize = Number(field.fontSize) || 16;
+        const fontFamily = field.fontFamily || "Arial";
 
-      // Tính toán các thuộc tính văn bản
-      let fontStyle = "";
-      if (field.isItalic) fontStyle += "italic ";
-      if (field.isBold) fontStyle += "bold ";
-      fontStyle += `${fontSize}px ${formData.fontFamily}`;
-      ctx.font = fontStyle;
-      ctx.textAlign = field.textAlign;
+        // Tính toán các thuộc tính văn bản
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        ctx.textAlign = field.textAlign;
 
-      // Vẽ văn bản
-      ctx.fillStyle = field.fontColor;
-      ctx.textBaseline = "alphabetic";
-      ctx.fillText(text, field.x, field.y);
+        // console.log("ctx.fillStyle", field.fontColor);
+
+        // Vẽ văn bản
+        ctx.fillStyle = field.fontColor;
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(text, field.x, field.y);
+      }
     });
   };
 
@@ -399,7 +429,7 @@ const TemplateForm = () => {
                 <FormFeedback>{errors.name}</FormFeedback>
               </FormGroup>
             </Col>
-            <Col md={6}>
+            {/* <Col md={6}>
               <FormGroup>
                 <Label for="fontFamily">Font chữ</Label>
                 <Input
@@ -409,13 +439,14 @@ const TemplateForm = () => {
                   value={formData.fontFamily}
                   onChange={handleInputChange}
                 >
-                  <option value="Helvetica">Helvetica</option>
-                  <option value="Arial">Arial</option>
-                  <option value="Times New Roman">Times New Roman</option>
-                  <option value="Courier New">Courier New</option>
+                  {listFont.map((font, index) => (
+                    <option key={index} value={font.name}>
+                      {font.name}
+                    </option>
+                  ))}
                 </Input>
               </FormGroup>
-            </Col>
+            </Col> */}
           </Row>
 
           <FormGroup>
@@ -451,7 +482,7 @@ const TemplateForm = () => {
                 onChange={handleFileChange}
               />
             </div>
-            <FormFeedback>{errors.background}</FormFeedback>
+            <div className="text-danger">{errors.background}</div>
 
             {selectedFile && (
               <div className="mt-2 mb-3">
@@ -501,46 +532,18 @@ const TemplateForm = () => {
             )}
           </div>
 
-          <Row className="mt-3 mb-2">
-            <Col xs={6}>
-              <FormGroup check>
-                <Label check>
-                  <Input
-                    type="checkbox"
-                    name="isDefault"
-                    checked={formData.isDefault}
-                    onChange={handleInputChange}
-                  />{" "}
-                  Đặt làm template mặc định
-                </Label>
-              </FormGroup>
-            </Col>
-            <Col xs={6}>
-              <FormGroup check>
-                <Label check>
-                  <Input
-                    type="checkbox"
-                    name="isActive"
-                    checked={formData.isActive}
-                    onChange={handleInputChange}
-                  />{" "}
-                  Kích hoạt template
-                </Label>
-              </FormGroup>
-            </Col>
-          </Row>
-
           <div className="mt-4">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5>Các trường dữ liệu</h5>
-              <Button
+              <div className="text-danger">{errors.fields}</div>
+              {/* <Button
                 type="button"
                 color="success"
                 size="sm"
                 onClick={addField}
               >
                 Thêm trường
-              </Button>
+              </Button> */}
             </div>
 
             {formData.fields.map((field, index) => (
@@ -553,61 +556,22 @@ const TemplateForm = () => {
               >
                 <CardBody>
                   <div className="d-flex justify-content-between">
-                    <h6>Trường #{index + 1}</h6>
-                    {formData.fields.length > 1 && (
-                      <Button
-                        type="button"
-                        color="danger"
-                        size="sm"
-                        onClick={() => removeField(index)}
-                      >
-                        Xóa
-                      </Button>
-                    )}
+                    <div className="d-flex align-items-center justify-content-center">
+                      <Input
+                        type="checkbox"
+                        name="isChoose"
+                        className="mt-0"
+                        checked={field.isChoose}
+                        onChange={(e) => handleFieldChange(index, e)}
+                      />
+                      <h6 className="mb-0 px-2">{field.title}</h6>
+                    </div>
                   </div>
 
                   <Row>
-                    <Col md={12}>
+                    <Col md={4}>
                       <FormGroup>
-                        <Label for={`field-name-${index}`}>Tên trường</Label>
-                        <Input
-                          id={`field-name-${index}`}
-                          name="name"
-                          value={field.name}
-                          onChange={(e) => handleFieldChange(index, e)}
-                          invalid={
-                            errors.fields &&
-                            errors.fields[index] &&
-                            errors.fields[index].name
-                          }
-                        />
-                        {errors.fields &&
-                          errors.fields[index] &&
-                          errors.fields[index].name && (
-                            <FormFeedback>
-                              {errors.fields[index].name}
-                            </FormFeedback>
-                          )}
-                      </FormGroup>
-                    </Col>
-                  </Row>
-
-                  <Row>
-                    <Col md={6}>
-                      <FormGroup>
-                        <Label for={`field-x-${index}`}>Vị trí X</Label>
-                        <Input
-                          type="number"
-                          id={`field-x-${index}`}
-                          name="x"
-                          value={field.x}
-                          onChange={(e) => handleFieldChange(index, e)}
-                        />
-                      </FormGroup>
-                    </Col>
-                    <Col md={6}>
-                      <FormGroup>
-                        <Label for={`field-y-${index}`}>Vị trí Y</Label>
+                        <Label for={`field-y-${index}`}>Top</Label>
                         <Input
                           type="number"
                           id={`field-y-${index}`}
@@ -617,36 +581,14 @@ const TemplateForm = () => {
                         />
                       </FormGroup>
                     </Col>
-                  </Row>
-
-                  <Row>
                     <Col md={4}>
                       <FormGroup>
-                        <Label for={`field-fontSize-${index}`}>Cỡ chữ</Label>
+                        <Label for={`field-x-${index}`}>Left</Label>
                         <Input
                           type="number"
-                          id={`field-fontSize-${index}`}
-                          name="fontSize"
-                          value={field.fontSize}
-                          onChange={(e) => handleFieldChange(index, e)}
-                          min="8"
-                          max="500"
-                          step="1"
-                        />
-                        <div className="text-muted small mt-1">
-                          <span className="text-info">Gợi ý:</span> Tiêu đề lớn:
-                          80-150px, Nội dung: 20-50px
-                        </div>
-                      </FormGroup>
-                    </Col>
-                    <Col md={4}>
-                      <FormGroup>
-                        <Label for={`field-fontColor-${index}`}>Màu chữ</Label>
-                        <Input
-                          type="color"
-                          id={`field-fontColor-${index}`}
-                          name="fontColor"
-                          value={field.fontColor}
+                          id={`field-x-${index}`}
+                          name="x"
+                          value={field.x}
                           onChange={(e) => handleFieldChange(index, e)}
                         />
                       </FormGroup>
@@ -672,30 +614,50 @@ const TemplateForm = () => {
                   </Row>
 
                   <Row>
-                    <Col md={6}>
-                      <FormGroup check>
-                        <Label check>
-                          <Input
-                            type="checkbox"
-                            name="isBold"
-                            checked={field.isBold}
-                            onChange={(e) => handleFieldChange(index, e)}
-                          />{" "}
-                          In đậm
-                        </Label>
+                    <Col md={4}>
+                      <FormGroup>
+                        <Label for={`field-fontSize-${index}`}>Cỡ chữ</Label>
+                        <Input
+                          type="number"
+                          id={`field-fontSize-${index}`}
+                          name="fontSize"
+                          value={field.fontSize}
+                          onChange={(e) => handleFieldChange(index, e)}
+                        />
+                        <div className="text-muted small mt-1">
+                          <span className="text-info">Gợi ý:</span> Tiêu đề lớn:
+                          80-150px, Nội dung: 20-50px
+                        </div>
                       </FormGroup>
                     </Col>
-                    <Col md={6}>
-                      <FormGroup check>
-                        <Label check>
-                          <Input
-                            type="checkbox"
-                            name="isItalic"
-                            checked={field.isItalic}
-                            onChange={(e) => handleFieldChange(index, e)}
-                          />{" "}
-                          In nghiêng
-                        </Label>
+                    <Col md={4}>
+                      <FormGroup>
+                        <Label for={`field-fontColor-${index}`}>Màu chữ</Label>
+                        <Input
+                          type="color"
+                          id={`field-fontColor-${index}`}
+                          name="fontColor"
+                          value={field.fontColor}
+                          onChange={(e) => handleFieldChange(index, e)}
+                        />
+                      </FormGroup>
+                    </Col>
+                    <Col md={4}>
+                      <FormGroup>
+                        <Label for={`field-textAlign-${index}`}>Font</Label>
+                        <Input
+                          type="select"
+                          id={`field-textAlign-${index}`}
+                          name="fontFamily"
+                          value={field.fontFamily}
+                          onChange={(e) => handleFieldChange(index, e)}
+                        >
+                          {listFont.map((font, index) => (
+                            <option key={index} value={font.name}>
+                              {font.name}
+                            </option>
+                          ))}
+                        </Input>
                       </FormGroup>
                     </Col>
                   </Row>

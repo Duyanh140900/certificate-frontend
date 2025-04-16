@@ -111,24 +111,6 @@ const CertificateForm = () => {
       newErrors.courseName = "Tên khóa học là bắt buộc";
     }
 
-    // Validate các trường động từ template
-    if (selectedTemplate && selectedTemplate.fields) {
-      const fieldErrors = {};
-      let hasFieldError = false;
-
-      selectedTemplate.fields.forEach((field) => {
-        const value = formData.fieldValues[field.name];
-        if (!value || !value.trim()) {
-          fieldErrors[field.name] = `Trường ${field.name} là bắt buộc`;
-          hasFieldError = true;
-        }
-      });
-
-      if (hasFieldError) {
-        newErrors.fieldValues = fieldErrors;
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -287,40 +269,6 @@ const CertificateForm = () => {
               </FormGroup>
             </Col>
           </Row>
-
-          {selectedTemplate && (
-            <>
-              <h5 className="mt-4 mb-3">Thông tin bổ sung</h5>
-              <Card className="mb-3">
-                <CardBody>
-                  {selectedTemplate.fields &&
-                    selectedTemplate.fields.map((field, index) => (
-                      <FormGroup key={index}>
-                        <Label for={`field-${field.name}`}>{field.name}</Label>
-                        <Input
-                          id={`field-${field.name}`}
-                          name={field.name}
-                          value={formData.fieldValues[field.name] || ""}
-                          onChange={(e) =>
-                            handleFieldValueChange(field.name, e.target.value)
-                          }
-                          invalid={
-                            errors.fieldValues && errors.fieldValues[field.name]
-                          }
-                          placeholder={`Nhập ${field.name}`}
-                        />
-                        {errors.fieldValues &&
-                          errors.fieldValues[field.name] && (
-                            <FormFeedback>
-                              {errors.fieldValues[field.name]}
-                            </FormFeedback>
-                          )}
-                      </FormGroup>
-                    ))}
-                </CardBody>
-              </Card>
-            </>
-          )}
 
           <div className="d-flex justify-content-end mt-4">
             <Button

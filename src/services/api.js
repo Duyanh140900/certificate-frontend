@@ -47,13 +47,14 @@ export const templateAPI = {
   createTemplate: (data) => api.post("/templates", data),
   updateTemplate: (id, data) => api.put(`/templates/${id}`, data),
   deleteTemplate: (id) => api.delete(`/templates/${id}`),
+  getListFonts: () => api.get("/templates/fonts"),
 };
 
 // API Certificate
 export const certificateAPI = {
   getCertificates: (params) => api.get("/certificates", { params }),
   getCertificateById: (id) => api.get(`/certificates/${id}`),
-  createCertificate: (data) => api.post("/certificates", data),
+  createCertificate: (data) => api.post("/certificates/course-completed", data),
   verifyCertificate: (certificateId) =>
     api.get(`/certificates/verify/${certificateId}`),
   downloadCertificate: (id) =>
